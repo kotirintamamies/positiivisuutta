@@ -1,0 +1,17 @@
+{
+  "name": "Positiivisuutta",
+  "version": "1.0.0",
+  "description": "Positiivisuutta ja smoothieita",
+  "main": "jarmo.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+    "dependencies: {
+        "express": "latest",
+        "request": "latest",
+        "twit": "latest"
+    
+    },
+  "author": "kotirintamamies",
+  "license": "ISC"
+}
