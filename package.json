@@ -1,17 +1,22 @@
 {
-  "name": "Positiivisuutta",
+  "name": "positiivisuutta",
   "version": "1.0.0",
-  "description": "Positiivisuutta ja smoothieita",
-  "main": "jarmo.js",
+  "description": "Ajossa: http://www.twitter.com/Positiivisuutta",
+  "main": "inspis.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
     "dependencies": {
         "express": "latest",
         "request": "latest",
-        "twit": "latest"
-    
+        "twit": "latest",
+        "gm": "latest"
     },
   "author": "kotirintamamies",
-  "license": "ISC"
+  "license": "ISC",
+  "repository" :
+  { 
+    "type" : "git", 
+    "url" : "https://github.com/kotirintamamies/positiivisuutta.git"
+  }
 }

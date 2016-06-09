@@ -2,6 +2,7 @@ var Twit = require("twit");
 var fs = require("fs");
 var request = require('request');
 var express = require('express');
+var gm = require('gm')
 var app = express();
 
 var dictionary = [];
@@ -9,6 +10,9 @@ dictionary = JSON.parse(fs.readFileSync("dictionary.json"));
 dictionary.ruoat=[];
 var data = JSON.parse(fs.readFileSync("data.json"));
 
+var stories = [];
+var texts = [];
+var tweetText = "";
 
 //serveri
 app.get("/", function (req, res) {
@@ -92,11 +96,9 @@ request(url+param, function (error, response, body) {
 
 //tekstinluomisfunktiot
 
-function createText()
-{    
- 
-  	var tekstirakenne = randomlist(data["lauseet"]).toString().split("|");
-	var teksti = "";
+function workText(tekstirakenne)
+{
+    var teksti = "";
 	for(var i =0;i<tekstirakenne.length;i++)
     {
         if(tekstirakenne[i][0]=="£")
@@ -107,13 +109,70 @@ function createText()
         {
             teksti+=randomlist(dictionary[tekstirakenne[i].substring(1)]);
         }
+        else if(tekstirakenne[i][0]=="§")
+        {
+            teksti+=generate();
+        }
         else
         {
             teksti+=tekstirakenne[i];
         }
     }
+   return teksti;
+}
+
+function generate()
+{
+    if(texts.length==0)
+        texts=randomlistmany(data["lauseet"], data["lauseet"].length);
     
-	return teksti;
+    return workText(texts.shift().toString().split("|"));
+}
+
+
+
+function createText()
+{    
+    var teksti = generate();
+    var temp = teksti.split(' ');
+    var valmis = [];
+    var counter = 0;
+    for(var i = 0; i< temp.length;i++)
+    {
+        counter+=temp[i].length;
+        if(counter>10)
+        {
+            counter = 0;
+            temp[i] = '\n' + temp[i];
+        }
+        valmis.push(temp[i]);
+    }
+    valmis[0][0] = valmis[0][0].toUpperCase();
+    valmis.push('\n\t\t\t --Positiivisuutta--')
+	return valmis.join(' ');
+}
+
+function makeStories()
+{
+    
+    
+    var a = randomlistmany(data["tarina0"], data["tarina0"].length);
+    var b = randomlistmany(data["tarina1"], data["tarina1"].length);
+    var c = randomlistmany(data["tarina2"], data["tarina2"].length);
+    
+    for(var i = 0; i<a.length;i++)
+    {
+        var tarina = "";
+        tarina+=workText(a[i].toString().split("|")).split(". ").join(".\n");
+        tarina+="\n\n";
+        tarina+=workText(b[i].toString().split("|")).split(". ").join(".\n");
+        tarina+="\n\n";
+        tarina+=workText(c[i].toString().split("|")).split(". ").join(".\n");
+        tarina+="\n\n";
+        tarina+=workText(randomlist(data["tarina3"]).toString().split("|")).split(". ").join(".\n");
+        tarina += "\n\t\t\t\tTarina vuodelta 19"+randomone(9).toString() + randomone(9).toString()+"\n\n--Positiivisuutta--"
+        stories.push(tarina);
+    }
 }
 
 //perusfunktiot, satunnaisuus
@@ -162,6 +221,24 @@ function post (text)
     log.add("tweeted: " + text);
     T.post("statuses/update", {status: text}, function(err,data,response){})
 }
+
+function postImage(story)
+{
+    T.postMediaChunked({file_path: 'image.jpg'}, function(err, data, response) {
+        if(data)
+            {
+                var mediaIdStr = data.media_id_string;
+                var params = {status: "#positiivisuutta", media_ids: [mediaIdStr]};
+                console.log(tweetText);
+                T.post('statuses/update', params, function (err, data, response) {
+                    getRandomImage(story)
+                });
+            }
+        else
+        console.log(err);
+    });
+}
+
 function resepti ()
 {
     var recipe = "Smoothie!";
@@ -176,6 +253,81 @@ function resepti ()
     post(recipe);
 }
 
+function getImgContent (body, isHtml)
+{
+    if(isHtml)
+        return body.split('<meta property="og:image" content="')[1].split('">')[0];
+    else
+        return body;
+}
+
+function getRandomImage(story)
+{
+    if (story)
+        downloadImage("http://lorempixel.com/1000/800/", true);
+    else
+    {
+        request("http://photo.net/photodb/random-photo?category=NoNudes", function(error, response, body){
+        if(!error)
+        {
+            downloadImage(body.split('<meta property="og:image" content="')[1].split('">')[0], false)
+        }
+        }
+        );
+    }    
+}
+
+function downloadImage(url, story)
+{
+            request(url)
+            .on('end', function(){
+                tweetText = createText();
+                var lines = tweetText.split('\n').length;
+                var r = randomone(100),
+                    g = randomone(100),
+                    b = randomone(100);
+                gm('image.png')
+                    .size(function(err, value)
+                    {
+                        if(!err)
+                        {
+                            var textsize=Math.floor(value.width/20);
+                            var textstart = value.height/lines;
+                            var bright = 100;
+                            var sat = 100;
+                            imgtext=tweetText;
+                            if(story)
+                            {
+                                bright=60;
+                                sat=50;
+                                textstart=40;
+                                textsize=18;
+                                imgtext=stories.shift();
+                                if(stories.length==0)
+                                    makeStories();
+                            }
+                                
+                            gm('image.png')
+                            .colorize(r, b, g)
+                            .modulate(bright, sat)
+                            .fontSize(textsize+"pt")
+                            .font('LeckerliOne-Regular.ttf')
+                            .fill('white')                
+                            .drawText(40, textstart, imgtext)
+                            
+                            .write('image.jpg', function(err) {})
+                        }
+                        else
+                        {
+                            console.log(err);
+                        }
+                    }
+                    )
+            })
+            .pipe(fs.createWriteStream('image.png'), function(err){"hippo"})
+
+}
+
 //seuraa käyttäjää
 
 function follow(id)
@@ -183,24 +335,43 @@ function follow(id)
 	T.post("friendships/create", {user_id: id, follow: true}, function(err, data, response) {});
 }
 
+var morning = false;
+var evening = false;
+var temphour = 0;
+
 function teejotain()
 {
-  console.log("ajastettu funktio käynnistetty");
-
-    data = JSON.parse(fs.readFileSync("data.json"));
-    var rand = randomone(data.BigChance);
-    switch (rand)
+    var d = new Date();
+    console.log(d.toLocaleTimeString());
+    
+    var h = d.getHours();
+    var done = false;
+  
+    if (temphour!=h)
         {
-            case 1:
-                post(createText())
-            break;
-            case 2:
-                resepti()
-            default:
-            break;
+            temphour=h;
+            if(h==6&&!morning)
+                {
+                    postImage(true);
+                    morning = true;
+                    evening = false;
+                    done = true;
+                }
+            if (h==18&&!evening)
+            {
+                postImage(true);
+                morning=false;
+                evening=true;
+                done=true;
+            }
+            if(!done)
+                postImage(false)
         }
+    data = JSON.parse(fs.readFileSync("data.json"));
 }
+
+makeStories();
 
 //toista 10 minuutin + 0-60s välein
 
-setInterval(teejotain, 1000*60*10+randomone(60000));
+setInterval(teejotain, 1000*60);
